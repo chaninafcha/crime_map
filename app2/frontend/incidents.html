@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AegisIL — אירועים</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&family=Rubik:wght@600;700&family=Red+Hat+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sidebar-logo">⬡ AegisIL<span>מערכת מודיעין פשיעה</span></div>
+  <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> לוח בקרה</a>
+  <a class="nav-item active" href="incidents.html"><span class="nav-icon">📋</span> אירועים</a>
+  <a class="nav-item" href="resources.html"><span class="nav-icon">🗂️</span> ניהול משאבים</a>
+  <a class="nav-item" href="chat.html"><span class="nav-icon">💬</span> צ'אט מודיעין</a>
+  <a class="nav-item" href="recipes.html"><span class="nav-icon">🍳</span> מתכונים</a>
+</nav>
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">ניהול אירועים</div>
+    <div class="topbar-time" id="clock"></div>
+  </div>
+  <div class="content">
+    <div class="filters">
+      <select id="f-quarter" onchange="loadData()">
+        <option value="">כל הרבעונים</option>
+        <option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option>
+      </select>
+      <input id="f-district" placeholder="סנן לפי מחוז..." oninput="loadData()" style="width:200px">
+      <input id="f-city" placeholder="סנן לפי עיר..." oninput="onCityInput()" style="width:200px">
+      <span id="total-count" style="color:var(--text2);font-size:13px;align-self:center"></span>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><h3>רשימת אירועים</h3></div>
+      <div id="table-container"><div class="loading"><div class="spinner"></div><br>טוען נתונים...</div></div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000/api';
+let currentPage = 1;
+
+function updateClock() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('he-IL'); }
+setInterval(updateClock, 1000); updateClock();
+
+function getBadge(group) {
+  const g = (group || '').trim();
+  if (!g || g.length < 2) return '<span class="badge badge-low">אחר</span>';
+  const code = parseInt(g);
+  if (code >= 100 && code < 200) return `<span class="badge badge-critical">${g}</span>`;
+  if (code >= 200 && code < 400) return `<span class="badge badge-high">${g}</span>`;
+  if (code >= 400 && code < 700) return `<span class="badge badge-medium">${g}</span>`;
+  return `<span class="badge badge-low">${g}</span>`;
+}
+
+async function loadData(page = currentPage) {
+  currentPage = page;
+  const quarter = document.getElementById('f-quarter').value;
+  const district = document.getElementById('f-district').value;
+  const city = document.getElementById('f-city').value;
+
+  const params = new URLSearchParams({ page, limit: 50 });
+  if (quarter) params.set('quarter', quarter);
+  if (district) params.set('district', district);
+  if (city) params.set('city', city);
+
+  document.getElementById('table-container').innerHTML = '<div class="loading"><div class="spinner"></div><br>טוען...</div>';
+
+  try {
+    const res = await fetch(`${API}/records?${params}`);
+    const { total, data } = await res.json();
+
+    document.getElementById('total-count').textContent = `${total.toLocaleString()} אירועים`;
+
+    if (!data.length) {
+      document.getElementById('table-container').innerHTML = '<div class="loading">לא נמצאו תוצאות</div>';
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    const rows = data.map(r => `
+      <tr>
+        <td style="font-family:'Red Hat Mono',monospace;font-size:11px;color:var(--text2)">${r.FictiveIDNumber.slice(0,12)}...</td>
+        <td>${r.Quarter || '—'}</td>
+        <td>${r.Yeshuv?.trim() || '—'}</td>
+        <td>${r.PoliceDistrict?.trim() || '—'}</td>
+        <td>${r.PoliceStation?.trim() || '—'}</td>
+        <td>${getBadge(r.StatisticGroupKod)}</td>
+        <td style="font-size:12px;color:var(--text2)">${r.StatisticType?.trim().slice(0,30) || '—'}</td>
+      </tr>`).join('');
+
+    document.getElementById('table-container').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>מזהה</th><th>רבעון</th><th>יישוב</th><th>מחוז</th><th>תחנה</th><th>קבוצה</th><th>סוג עבירה</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+
+    // Pagination
+    const totalPages = Math.ceil(total / 50);
+    let pages = '';
+    for (let i = Math.max(1, page-2); i <= Math.min(totalPages, page+2); i++) {
+      pages += `<button class="page-btn${i===page?' active':''}" onclick="loadData(${i})">${i}</button>`;
+    }
+    document.getElementById('pagination').innerHTML = `
+      <button class="page-btn" onclick="loadData(1)" ${page===1?'disabled':''}>«</button>
+      <button class="page-btn" onclick="loadData(${page-1})" ${page===1?'disabled':''}>‹</button>
+      ${pages}
+      <button class="page-btn" onclick="loadData(${page+1})" ${page===totalPages?'disabled':''}>›</button>
+      <button class="page-btn" onclick="loadData(${totalPages})" ${page===totalPages?'disabled':''}>»</button>
+      <span class="page-info">עמוד ${page} מתוך ${totalPages}</span>`;
+  } catch(e) {
+    document.getElementById('table-container').innerHTML = `<div class="loading" style="color:#EF4444">שגיאה: ${e.message}</div>`;
+  }
+}
+
+loadData(1);
+
+const MAKE_WEBHOOK = 'https://hook.eu1.make.com/8hbl8b7cu974pl0te62os8m5y8kdjvob';
+let cityDebounceTimer = null;
+
+function onCityInput() {
+  loadData();
+  clearTimeout(cityDebounceTimer);
+  const city = document.getElementById('f-city').value.trim();
+  if (!city) return;
+  cityDebounceTimer = setTimeout(() => {
+    fetch(MAKE_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        city,
+        timestamp: new Date().toISOString(),
+        source: 'AegisIL'
+      })
+    }).catch(() => {});
+  }, 1000);
+}
+</script>
+</body>
+</html>

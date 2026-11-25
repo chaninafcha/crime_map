@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AegisIL — ניהול משאבים</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&family=Rubik:wght@600;700&family=Red+Hat+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sidebar-logo">⬡ AegisIL<span>מערכת מודיעין פשיעה</span></div>
+  <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> לוח בקרה</a>
+  <a class="nav-item" href="incidents.html"><span class="nav-icon">📋</span> אירועים</a>
+  <a class="nav-item active" href="resources.html"><span class="nav-icon">🗂️</span> ניהול משאבים</a>
+  <a class="nav-item" href="chat.html"><span class="nav-icon">💬</span> צ'אט מודיעין</a>
+</nav>
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">ניהול משאבים ומחוזות</div>
+    <div class="topbar-time" id="clock"></div>
+  </div>
+  <div class="content">
+    <div class="resource-grid" id="resource-grid">
+      <div class="loading"><div class="spinner"></div><br>טוען...</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><h3>המלצות הקצאת משאבים</h3></div>
+      <table>
+        <thead><tr><th>מחוז</th><th>אירועים</th><th>עומס</th><th>המלצה</th></tr></thead>
+        <tbody id="alloc-table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000/api';
+
+function updateClock() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('he-IL'); }
+setInterval(updateClock, 1000); updateClock();
+
+function getLoadClass(pct) {
+  if (pct < 30) return 'load-low';
+  if (pct < 60) return 'load-med';
+  if (pct < 85) return 'load-high';
+  return 'load-crit';
+}
+
+function getRecommendation(pct) {
+  if (pct < 30) return '<span class="badge badge-low">תקין</span>';
+  if (pct < 60) return '<span class="badge badge-medium">מעקב</span>';
+  if (pct < 85) return '<span class="badge badge-high">חיזוק נדרש</span>';
+  return '<span class="badge badge-critical">דחוף — הגברת כוחות</span>';
+}
+
+async function load() {
+  try {
+    const data = await fetch(`${API}/stats/district`).then(r => r.json());
+    const max = data[0]?.count || 1;
+
+    // Resource cards
+    const cards = data.slice(0, 6).map(d => {
+      const pct = Math.round(d.count / max * 100);
+      const cls = getLoadClass(pct);
+      return `
+        <div class="resource-card">
+          <div class="resource-name">${d.district}</div>
+          <div class="resource-stat"><span>אירועים</span><span>${d.count.toLocaleString()}</span></div>
+          <div class="resource-stat"><span>עומס יחסי</span><span>${pct}%</span></div>
+          <div class="load-bar"><div class="load-fill ${cls}" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join('');
+    document.getElementById('resource-grid').innerHTML = cards;
+
+    // Allocation table
+    const rows = data.map(d => {
+      const pct = Math.round(d.count / max * 100);
+      return `<tr>
+        <td>${d.district}</td>
+        <td>${d.count.toLocaleString()}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="load-bar" style="width:80px"><div class="load-fill ${getLoadClass(pct)}" style="width:${pct}%"></div></div>
+            <span style="font-size:12px;color:var(--text2)">${pct}%</span>
+          </div>
+        </td>
+        <td>${getRecommendation(pct)}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('alloc-table').innerHTML = rows;
+  } catch(e) {
+    document.getElementById('resource-grid').innerHTML = `<div class="loading" style="color:#EF4444">שגיאה: ${e.message}</div>`;
+  }
+}
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AegisIL — צ'אט מודיעין</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&family=Rubik:wght@600;700&family=Red+Hat+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .chat-layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* Chat Panel */
+  .chat-panel {
+    width: 380px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .chat-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chat-status {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--low);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 90%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg-user {
+    background: var(--primary);
+    color: #fff;
+    align-self: flex-start;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-bot {
+    background: var(--surface2);
+    color: var(--text);
+    align-self: flex-end;
+    border-bottom-left-radius: 4px;
+  }
+  .msg-thinking {
+    background: var(--surface2);
+    color: var(--text2);
+    align-self: flex-end;
+    font-style: italic;
+    font-size: 12px;
+  }
+  .msg-time {
+    font-size: 10px;
+    color: var(--text2);
+    margin-top: 4px;
+    text-align: left;
+  }
+
+  .chat-input-area {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .chat-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-family: 'Heebo', sans-serif;
+    direction: rtl;
+    resize: none;
+    min-height: 42px;
+    max-height: 120px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .chat-input:focus { border-color: var(--primary); }
+  .send-btn {
+    background: var(--primary);
+    border: none;
+    color: #fff;
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+  .send-btn:hover { opacity: 0.85; }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Main content area */
+  .chat-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* Suggestions */
+  .suggestions {
+    padding: 0 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .suggestion-label { font-size: 11px; color: var(--text2); margin-bottom: 2px; }
+  .suggestion-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: 'Heebo', sans-serif;
+    cursor: pointer;
+    text-align: right;
+    direction: rtl;
+    transition: all 0.15s;
+  }
+  .suggestion-btn:hover { background: var(--border); color: var(--text); }
+
+  /* Welcome */
+  .welcome-msg {
+    background: linear-gradient(135deg, #1e3a5f 0%, #1E1F26 100%);
+    border: 1px solid #2d4a6e;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+  .welcome-msg strong { color: var(--primary); }
+</style>
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sidebar-logo">⬡ AegisIL<span>מערכת מודיעין פשיעה</span></div>
+  <a class="nav-item" href="index.html"><span class="nav-icon">📊</span> לוח בקרה</a>
+  <a class="nav-item" href="incidents.html"><span class="nav-icon">📋</span> אירועים</a>
+  <a class="nav-item" href="resources.html"><span class="nav-icon">🗂️</span> ניהול משאבים</a>
+  <a class="nav-item active" href="chat.html"><span class="nav-icon">💬</span> צ'אט מודיעין</a>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">צ'אט מודיעין — שאל על הנתונים</div>
+    <div class="topbar-time" id="clock"></div>
+  </div>
+
+  <div class="chat-layout">
+    <!-- Main content -->
+    <div class="chat-content">
+      <div class="content">
+        <div class="kpi-grid" id="kpi-grid">
+          <div class="kpi-card"><div class="kpi-label">סה"כ שאלות</div><div class="kpi-value" id="kpi-questions">0</div><div class="kpi-sub">בסשן זה</div></div>
+          <div class="kpi-card"><div class="kpi-label">תשובות התקבלו</div><div class="kpi-value" id="kpi-answers">0</div><div class="kpi-sub">מ-Gemini AI</div></div>
+          <div class="kpi-card"><div class="kpi-label">מודל</div><div class="kpi-value" style="font-size:16px">Gemini</div><div class="kpi-sub">3.5 Flash</div></div>
+          <div class="kpi-card"><div class="kpi-label">מקור נתונים</div><div class="kpi-value" style="font-size:16px">DATA</div><div class="kpi-sub">data.csv</div></div>
+        </div>
+
+        <div class="chart-card" style="margin-bottom:16px">
+          <div class="chart-title">📌 מה אפשר לשאול?</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;color:var(--text2);line-height:1.8">
+            <div>
+              • כמה אירועים יש בכל מחוז?<br>
+              • מהם סוגי העבירות הנפוצים?<br>
+              • אילו ערים יש הכי הרבה אירועים?<br>
+              • מה ההתפלגות הרבעונית?
+            </div>
+            <div>
+              • כמה אירועים יש ברבעון Q1?<br>
+              • מהם הנתונים על מחוז ספציפי?<br>
+              • מה קוד הסטטיסטיקה הנפוץ ביותר?<br>
+              • השווה בין מחוזות שונים
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title">📊 מבנה הנתונים — עמודות ה-DATA</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px">
+            <div style="background:var(--surface2);padding:8px;border-radius:8px"><span style="color:var(--primary)">Year</span><br><span style="color:var(--text2)">שנה</span></div>
+            <div style="background:var(--surface2);padding:8px;border-radius:8px"><span style="color:var(--primary)">Quarter</span><br><span style="color:var(--text2)">רבעון (Q1-Q4)</span></div>
+            <div style="background:var(--surface2);padding:8px;border-radius:8px"><span style="color:var(--primary)">Yeshuv</span><br><span style="color:var(--text2)">יישוב</span></div>
+            <div style="background:var(--surface2);padding:8px;border-radius:8px"><span style="color:var(--primary)">PoliceDistrict</span><br><span style="color:var(--text2)">מחוז משטרה</span></div>
+            <div style="background:var(--surface2);padding:8px;border-radius:8px"><span style="color:var(--primary)">PoliceMerhav</span><br><span style="color:var(--text2)">מרחב משטרה</span></div>
+            <div style="background:var(--surface2);padding:8px;border-radius:8px"><span style="color:var(--primary)">PoliceStation</span><br><span style="color:var(--text2)">תחנת משטרה</span></div>
+            <div style="background:var(--surface2);padding:8px;border-radius:8px"><span style="color:var(--primary)">StatisticGroup</span><br><span style="color:var(--text2)">קבוצת סטטיסטיקה</span></div>
+            <div style="background:var(--surface2);padding:8px;border-radius:8px"><span style="color:var(--primary)">StatisticType</span><br><span style="color:var(--text2)">סוג עבירה</span></div>
+            <div style="background:var(--surface2);padding:8px;border-radius:8px"><span style="color:var(--primary)">StatisticArea</span><br><span style="color:var(--text2)">אזור סטטיסטי</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Panel (Left side) -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="chat-status"></div>
+        💬 שאל על הנתונים
+      </div>
+
+      <div class="chat-messages" id="chat-messages">
+        <div class="welcome-msg">
+          <strong>שלום! אני עוזר המודיעין של AegisIL 🤖</strong><br>
+          אני מחובר ל-Gemini 3.5 Flash ויכול לענות על שאלות לגבי אירועי פשיעה, מחוזות, סוגי עבירות ועוד.<br><br>
+          שאל אותי כל שאלה על הנתונים!
+        </div>
+      </div>
+
+      <div class="suggestions">
+        <div class="suggestion-label">שאלות מהירות:</div>
+        <button class="suggestion-btn" onclick="sendSuggestion('כמה אירועים יש בסך הכל בנתונים?')">כמה אירועים יש בסך הכל?</button>
+        <button class="suggestion-btn" onclick="sendSuggestion('מהם המחוזות עם הכי הרבה אירועים?')">מחוזות עם הכי הרבה אירועים</button>
+        <button class="suggestion-btn" onclick="sendSuggestion('מה ההתפלגות לפי רבעונים Q1 Q2 Q3 Q4?')">התפלגות לפי רבעונים</button>
+        <button class="suggestion-btn" onclick="sendSuggestion('מהם סוגי העבירות הנפוצים ביותר?')">סוגי עבירות נפוצים</button>
+      </div>
+
+      <div class="chat-input-area">
+        <textarea
+          class="chat-input"
+          id="chat-input"
+          placeholder="שאל שאלה על הנתונים..."
+          rows="1"
+          onkeydown="handleKey(event)"
+          oninput="autoResize(this)"
+        ></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()" title="שלח">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_KEY = window.GEMINI_API_KEY || '';
+const MODEL   = 'gemini-3.5-flash';
+let API_URL = '';
+
+// טעינת ה-key מה-server
+fetch('/api/config').then(r => r.json()).then(cfg => {
+  window.GEMINI_API_KEY = cfg.geminiKey;
+  API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse&key=${cfg.geminiKey}`;
+}).catch(() => {});
+
+const SYSTEM = `אתה עוזר מודיעין משטרתי ישראלי. יש לך גישה לנתוני פשיעה מקובץ CSV בשם DATA.
+מבנה הנתונים:
+- Year: שנה (2025) | Quarter: רבעון Q1-Q4
+- Yeshuv: יישוב | PoliceDistrict: מחוז משטרה
+- PoliceMerhav: מרחב | PoliceStation: תחנה
+- StatisticGroup: קבוצת עבירה (100=נגד אדם,200=נגד רכוש,300=מין,400=סמים,500=תנועה,600=כלכלי,700=אחר,800=מנהלי,900=ביטחון,1000=מיוחד,10000=חמור)
+- StatisticType: סוג עבירה ספציפי
+ענה בעברית, תמציתי ומקצועי.`;
+
+let history = [];
+let questionCount = 0;
+let answerCount = 0;
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('he-IL');
+}
+setInterval(updateClock, 1000); updateClock();
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function addMessage(text, type) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `msg msg-${type}`;
+  div.textContent = text;
+  const timeDiv = document.createElement('div');
+  timeDiv.className = 'msg-time';
+  timeDiv.textContent = new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = `display:flex;flex-direction:column;align-items:${type==='user'?'flex-start':'flex-end'}`;
+  wrapper.appendChild(div);
+  wrapper.appendChild(timeDiv);
+  container.appendChild(wrapper);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function removeThinking() {
+  document.querySelector('.msg-thinking')?.closest('div[style]')?.remove();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  input.value = '';
+  input.style.height = 'auto';
+
+  addMessage(text, 'user');
+  questionCount++;
+  document.getElementById('kpi-questions').textContent = questionCount;
+  addMessage('חושב...', 'thinking');
+
+  history.push({ role: 'user', parts: [{ text }] });
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM }] },
+        contents: history,
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    removeThinking();
+    const botDiv = addMessage('', 'bot');
+    let fullText = '';
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6).trim();
+        if (!json || json === '[DONE]') continue;
+        try {
+          const chunk = JSON.parse(json);
+          const part = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (part) {
+            fullText += part;
+            botDiv.textContent = fullText;
+            document.getElementById('chat-messages').scrollTop = 99999;
+          }
+        } catch {}
+      }
+    }
+
+    if (!fullText) botDiv.textContent = 'לא התקבלה תשובה';
+    history.push({ role: 'model', parts: [{ text: fullText }] });
+    answerCount++;
+    document.getElementById('kpi-answers').textContent = answerCount;
+
+  } catch (err) {
+    removeThinking();
+    addMessage(`שגיאה: ${err.message}`, 'bot');
+    history.pop();
+  }
+
+  btn.disabled = false;
+  input.focus();
+}
+
+function sendSuggestion(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+</script>
+</body>
+</html>

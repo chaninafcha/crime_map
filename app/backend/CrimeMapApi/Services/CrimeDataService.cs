@@ -24,7 +24,7 @@ public class CrimeDataService
             MissingFieldFound = null,
             HeaderValidated = null
         };
-        using var reader = new StreamReader(_csvPath);
+        using var reader = new StreamReader(_csvPath, System.Text.Encoding.GetEncoding(1255));
         using var csv = new CsvReader(reader, cfg);
         _cache = csv.GetRecords<CrimeRecord>().ToList();
         return _cache;
